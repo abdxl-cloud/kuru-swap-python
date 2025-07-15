@@ -110,7 +110,40 @@ ERC20_ABI = [
 AWAITING_TOKEN_ADDRESS, AWAITING_SWAP_AMOUNT, AWAITING_PRIVATE_KEY, AWAITING_WALLET_NAME = range(4)
 
 # Initialize Web3
-w3 = Web3(Web3.HTTPProvider(RPC_URL))
+try:
+    w3 = Web3(Web3.HTTPProvider(RPC_URL))
+    # Test connection and handle non-standard chain IDs
+    if w3.is_connected():
+        try:
+            chain_id = w3.eth.chain_id
+            # Handle non-numeric chain IDs gracefully
+            if isinstance(chain_id, str):
+                logger.info(f"Connected to network with chain ID: {chain_id}")
+            else:
+                logger.info(f"Connected to network with chain ID: {chain_id}")
+        except Exception as e:
+            logger.warning(f"Could not get chain ID: {e}")
+    else:
+        logger.error("Failed to connect to Web3 provider")
+except Exception as e:
+    logger.error(f"Error initializing Web3: {e}")
+    w3 = None
+
+def ensure_web3_connected():
+    """Ensure Web3 is connected and available."""
+    global w3
+    if w3 is None:
+        try:
+            w3 = Web3(Web3.HTTPProvider(RPC_URL))
+        except Exception as e:
+            logger.error(f"Failed to reinitialize Web3: {e}")
+            return False
+    
+    if not w3.is_connected():
+        logger.error("Web3 is not connected")
+        return False
+    
+    return True
 
 class DatabaseManager:
     def __init__(self, db_path: str = None):
@@ -402,6 +435,10 @@ class KuruSwapBot:
     def get_mon_balance(self, address: str) -> float:
         """Get MON balance for an address."""
         try:
+            if not ensure_web3_connected():
+                logger.error("Web3 not available for balance check")
+                return 0.0
+            
             balance_wei = w3.eth.get_balance(address)
             return float(w3.from_wei(balance_wei, 'ether'))
         except Exception as e:
@@ -411,6 +448,10 @@ class KuruSwapBot:
     def get_token_info(self, token_address: str) -> Optional[Dict]:
         """Get token information (name, symbol, decimals)."""
         try:
+            if not ensure_web3_connected():
+                logger.error("Web3 not available for token info")
+                return None
+                
             if not w3.is_address(token_address):
                 return None
             
