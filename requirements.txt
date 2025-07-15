@@ -1,4 +1,5 @@
 # KuruSwap Telegram Bot Requirements
+setuptools>=65.0.0
 
 # Telegram Bot API
 python-telegram-bot==20.7
